@@ -11,6 +11,7 @@ const userRoutes = require('./routes/userRoutes')
 const bookingRoutes = require('./routes/bookingRoutes')
 
 const app = express()
+app.set('trust proxy', 1)
 
 // Security
 app.use(helmet())
@@ -22,12 +23,19 @@ app.use(
 )
 
 // Rate limiting
-const limiter = rateLimit({
+const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 300,
   message: { success: false, message: 'Too many requests, please try again later' },
 })
-app.use('/api/', limiter)
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { success: false, message: 'Too many login attempts, please try again later' },
+})
+
+app.use('/api/', apiLimiter)
 
 // Body parsing
 app.use(express.json())
@@ -67,7 +75,7 @@ const specs = swaggerJsdoc(swaggerOptions)
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs))
 
 // Routes
-app.use('/api/auth', authRoutes)
+app.use('/api/auth', authLimiter, authRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/bookings', bookingRoutes)
 

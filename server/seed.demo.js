@@ -5,9 +5,9 @@ const User = require('./src/models/User')
 const Booking = require('./src/models/Booking')
 
 const DEMO_PASSWORD = 'Password#123'
-const BASE_DATE_TIME = new Date('2026-07-28T10:54:00+06:30')
-const USER_COUNT = 20
-const BOOKING_COUNT = 50
+const BASE_DATE_TIME = new Date('2026-07-29T15:26:00+06:30')
+const USER_COUNT = 10
+const BOOKING_COUNT = 20
 
 const FIRST_NAMES = [
   'Aung',
@@ -76,24 +76,6 @@ const buildUsers = async () => {
       role: 'owner',
     },
     {
-      name: 'Owner Lead',
-      email: 'owner3@test.com',
-      password: hashedPassword,
-      role: 'owner',
-    },
-    {
-      name: 'Owner Coordinator',
-      email: 'owner4@test.com',
-      password: hashedPassword,
-      role: 'owner',
-    },
-    {
-      name: 'Owner Supervisor',
-      email: 'owner5@test.com',
-      password: hashedPassword,
-      role: 'owner',
-    },
-    {
       name: 'Regular User',
       email: 'user@test.com',
       password: hashedPassword,
@@ -119,26 +101,94 @@ const buildUsers = async () => {
 
 const addMinutes = (date, minutes) => new Date(date.getTime() + minutes * 60 * 1000)
 
+const MINUTE_OPTIONS = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
+
+const setTimeParts = (date, hours, minutes) => {
+  const nextDate = new Date(date)
+  nextDate.setHours(hours, minutes, 0, 0)
+  return nextDate
+}
+
+const moveToNextValidSlot = (date) => {
+  const nextDate = new Date(date)
+  nextDate.setSeconds(0, 0)
+
+  if (nextDate.getHours() < 8) {
+    return setTimeParts(nextDate, 8, 5)
+  }
+
+  if (nextDate.getHours() > 20 || (nextDate.getHours() === 20 && nextDate.getMinutes() > 25)) {
+    const followingDay = addMinutes(setTimeParts(nextDate, 8, 5), 24 * 60)
+    return followingDay
+  }
+
+  const currentMinutes = nextDate.getMinutes()
+  const nextValidMinute = MINUTE_OPTIONS.find((minute) => minute >= currentMinutes)
+
+  if (typeof nextValidMinute === 'number') {
+    nextDate.setMinutes(nextValidMinute, 0, 0)
+    return nextDate
+  }
+
+  return addMinutes(setTimeParts(nextDate, nextDate.getHours() + 1, 5), 0)
+}
+
+const ensureWorkingHours = (startTime, durationMinutes) => {
+  let candidate = moveToNextValidSlot(startTime)
+  let endTime = addMinutes(candidate, durationMinutes)
+
+  while (endTime.getHours() > 22 || (endTime.getHours() === 22 && endTime.getMinutes() > 0)) {
+    candidate = addMinutes(setTimeParts(candidate, 8, 5), 24 * 60)
+    candidate = moveToNextValidSlot(candidate)
+    endTime = addMinutes(candidate, durationMinutes)
+  }
+
+  return {
+    startTime: candidate,
+    endTime,
+  }
+}
+
 const buildBookings = (users) => {
   const bookings = []
   const bookingUsers = users.filter((user) => user.role !== 'admin')
+  const scheduleBlocks = [
+    {
+      start: new Date('2026-07-28T08:05:00+06:30'),
+      durations: [30, 60, 90, 120, 150],
+    },
+    {
+      start: new Date('2026-07-29T08:05:00+06:30'),
+      durations: [30, 60, 90, 120],
+    },
+    {
+      start: new Date('2026-07-29T15:25:00+06:30'),
+      durations: [60],
+    },
+    {
+      start: new Date('2026-07-29T16:30:00+06:30'),
+      durations: [30, 60, 90, 60],
+    },
+    {
+      start: new Date('2026-07-30T08:05:00+06:30'),
+      durations: [30, 60, 90, 120, 150, 30],
+    },
+  ]
+  let anchorIndex = 0
+  let bookingsInCurrentBlock = 0
+  let nextStartTime = scheduleBlocks[0].start
 
   for (let index = 0; index < BOOKING_COUNT; index += 1) {
-    const user = bookingUsers[index % bookingUsers.length]
-    const topic = BOOKING_TOPICS[index % BOOKING_TOPICS.length]
-    const durationMinutes = 30 + (index % 5) * 30
-
-    let startTime
-
-    if (index < 16) {
-      startTime = addMinutes(BASE_DATE_TIME, -((index + 2) * 95))
-    } else if (index < 20) {
-      startTime = addMinutes(BASE_DATE_TIME, -((index - 15) * 10))
-    } else {
-      startTime = addMinutes(BASE_DATE_TIME, (index - 19) * 55)
+    if (bookingsInCurrentBlock === scheduleBlocks[anchorIndex].durations.length) {
+      anchorIndex += 1
+      bookingsInCurrentBlock = 0
+      nextStartTime = scheduleBlocks[anchorIndex].start
     }
 
-    const endTime = addMinutes(startTime, durationMinutes)
+    const user = bookingUsers[index % bookingUsers.length]
+    const topic = BOOKING_TOPICS[index % BOOKING_TOPICS.length]
+    const durationMinutes = scheduleBlocks[anchorIndex].durations[bookingsInCurrentBlock]
+    const { startTime, endTime } = ensureWorkingHours(nextStartTime, durationMinutes)
 
     bookings.push({
       userId: user._id,
@@ -148,6 +198,9 @@ const buildBookings = (users) => {
       createdAt: addMinutes(BASE_DATE_TIME, -index),
       updatedAt: addMinutes(BASE_DATE_TIME, -index),
     })
+
+    nextStartTime = addMinutes(endTime, 5)
+    bookingsInCurrentBlock += 1
   }
 
   return bookings
