@@ -40,8 +40,11 @@ export const useUpdateRole = () => {
   return useMutation({
     mutationFn: ({ id, role }) =>
       api.patch(`/api/users/${id}/role`, { role }).then((r) => r.data.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY })
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY }),
+        invalidateBookingQueries(queryClient),
+      ])
       toast.success('Role updated')
     },
     onError: (err) => {
