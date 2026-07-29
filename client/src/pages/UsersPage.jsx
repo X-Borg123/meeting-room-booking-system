@@ -33,18 +33,27 @@ import {
   SelectTrigger,
 } from '@/components/ui/select'
 import { Users2, Shield, Crown, Trash2, Search } from 'lucide-react'
+import RoleTabsFilter from '../components/common/RoleTabsFilter'
+
+const USER_ROLE_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'owner', label: 'Owner' },
+  { value: 'user', label: 'User' },
+]
 
 const UsersPage = () => {
   const ITEMS_PER_PAGE = 10
   const { user: currentUser } = useAuth()
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [roleFilter, setRoleFilter] = useState('all')
   const [pendingRoleChange, setPendingRoleChange] = useState(null)
   const { data: stats } = useUserStats()
   const { data, isLoading } = useUsers({
     page,
     limit: ITEMS_PER_PAGE,
     search,
+    ...(roleFilter !== 'all' ? { role: roleFilter } : {}),
   })
   const createMutation = useCreateUser()
   const updateRoleMutation = useUpdateRole()
@@ -55,7 +64,7 @@ const UsersPage = () => {
 
   useEffect(() => {
     setPage(1)
-  }, [search])
+  }, [search, roleFilter])
 
   const handleConfirmDelete = async () => {
     if (deleteTarget) {
@@ -115,17 +124,24 @@ const UsersPage = () => {
             count={meta?.totalItems ?? users.length}
             countLabel="users"
             filters={
-              <div className="relative w-full sm:w-64">
-                <Search
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+                <RoleTabsFilter
+                  value={roleFilter}
+                  onValueChange={setRoleFilter}
+                  options={USER_ROLE_OPTIONS}
                 />
-                <Input
-                  placeholder="Search users..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9"
-                />
+                <div className="relative w-full sm:w-64">
+                  <Search
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <Input
+                    placeholder="Search users..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
               </div>
             }
           />
@@ -135,7 +151,7 @@ const UsersPage = () => {
             <LoadingSkeleton rows={5} />
           ) : users.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">
-              {search ? 'No users found' : 'No users available'}
+              {search || roleFilter !== 'all' ? 'No users found' : 'No users available'}
             </p>
           ) : (
             <>

@@ -85,7 +85,7 @@ const MobileNav = () => {
                 </div>
               </div>
               <Button variant="ghost" size="sm" onClick={() => setLogoutOpen(true)}>
-                <LogOut size={16} className="mr-1" /> Logout
+                <LogOut size={16} className="mr-1 text-red-500 hover:text-red-600" /> <span className='text-red-500 hover:text-red-600'>Logout</span>
               </Button>
             </div>
           </div>

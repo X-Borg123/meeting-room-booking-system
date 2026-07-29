@@ -8,6 +8,7 @@ const parseListOptions = (req) => {
   const limit = Math.max(parseInt(req.query.limit, 10) || 10, 1)
   const search = req.query.search?.trim() || ''
   const role = req.query.role?.trim() || ''
+  const status = req.query.status?.trim() || ''
 
   return {
     page,
@@ -15,6 +16,7 @@ const parseListOptions = (req) => {
     skip: (page - 1) * limit,
     search,
     role,
+    status,
   }
 }
 
@@ -44,9 +46,10 @@ const hasOverlap = async (startTime, endTime, excludeId = null) => {
 }
 
 const getBookings = catchAsync(async (req, res) => {
-  const { page, limit, skip, search, role } = parseListOptions(req)
+  const { page, limit, skip, search, role, status } = parseListOptions(req)
   const query = {}
   let matchedUserIds = null
+  const now = new Date()
 
   if (role && ['admin', 'owner', 'user'].includes(role)) {
     matchedUserIds = await User.find({ role }).distinct('_id')
@@ -73,6 +76,15 @@ const getBookings = catchAsync(async (req, res) => {
       { title: searchRegex },
       { userId: { $in: matchedUsers.map((user) => user._id) } },
     ]
+  }
+
+  if (status === 'active') {
+    query.startTime = { $lte: now }
+    query.endTime = { $gte: now }
+  } else if (status === 'upcoming') {
+    query.startTime = { $gt: now }
+  } else if (status === 'past') {
+    query.endTime = { $lt: now }
   }
 
   const totalItems = await Booking.countDocuments(query)

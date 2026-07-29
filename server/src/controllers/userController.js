@@ -8,26 +8,32 @@ const parseListOptions = (req) => {
   const page = Math.max(parseInt(req.query.page, 10) || 1, 1)
   const limit = Math.max(parseInt(req.query.limit, 10) || 10, 1)
   const search = req.query.search?.trim() || ''
+  const role = req.query.role?.trim() || ''
 
   return {
     page,
     limit,
     skip: (page - 1) * limit,
     search,
+    role,
   }
 }
 
 const getUsers = catchAsync(async (req, res) => {
-  const { page, limit, skip, search } = parseListOptions(req)
-  const query = search
-    ? {
-        $or: [
-          { name: new RegExp(search, 'i') },
-          { email: new RegExp(search, 'i') },
-          { role: new RegExp(search, 'i') },
-        ],
-      }
-    : {}
+  const { page, limit, skip, search, role } = parseListOptions(req)
+  const query = {}
+
+  if (search) {
+    query.$or = [
+      { name: new RegExp(search, 'i') },
+      { email: new RegExp(search, 'i') },
+      { role: new RegExp(search, 'i') },
+    ]
+  }
+
+  if (role && ['admin', 'owner', 'user'].includes(role)) {
+    query.role = role
+  }
 
   const totalItems = await User.countDocuments(query)
   const users = await User.find(query)

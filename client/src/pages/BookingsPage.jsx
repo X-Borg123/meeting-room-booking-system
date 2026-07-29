@@ -12,17 +12,24 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Calendar, Search } from 'lucide-react'
 
+const BOOKING_STATUS_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'upcoming', label: 'Upcoming' },
+  { value: 'past', label: 'Past' },
+]
+
 const BookingsPage = () => {
   const ITEMS_PER_PAGE = 10
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
-  const [roleFilter, setRoleFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
   const { user } = useAuth()
   const { data, isLoading } = useBookings({
     page,
     limit: ITEMS_PER_PAGE,
     search,
-    ...(roleFilter !== 'all' ? { role: roleFilter } : {}),
+    ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
   })
   const createMutation = useCreateBooking()
   const deleteMutation = useDeleteBooking()
@@ -32,7 +39,7 @@ const BookingsPage = () => {
 
   useEffect(() => {
     setPage(1)
-  }, [search, roleFilter])
+  }, [search, statusFilter])
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -61,7 +68,11 @@ const BookingsPage = () => {
             countLabel="bookings"
             filters={
               <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-                <RoleTabsFilter value={roleFilter} onValueChange={setRoleFilter} />
+                <RoleTabsFilter
+                  value={statusFilter}
+                  onValueChange={setStatusFilter}
+                  options={BOOKING_STATUS_OPTIONS}
+                />
                 <div className="relative w-full sm:w-64">
                   <Search
                     size={16}
@@ -86,7 +97,7 @@ const BookingsPage = () => {
               icon={Calendar}
               title="No bookings found"
               description={
-                search || roleFilter !== 'all'
+                search || statusFilter !== 'all'
                   ? 'Try a different search term'
                   : 'Create your first booking to get started'
               }
